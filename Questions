@@ -1,0 +1,984 @@
+
+MERN Stack Interview Prep Guide (Fresher Edition)
+
+Order: Backend first → Frontend → Practical/coding → Behavioral & strategy. Legend: ⭐ = asked very often · 💬 = say this first (the 15-second answer) · 🧪 = code you should be able to write.
+
+    How to answer any question: give the one-line definition first, then why it exists, then a tiny example. Interviewers of freshers care more about clarity of fundamentals than fancy answers.
+
+Contents
+
+    Part 1 — Backend: Node.js · Express.js · MongoDB/Mongoose · API design, architecture & DevOps
+    Part 2 — Frontend: JavaScript fundamentals · React · State management · Performance
+    Part 3 — Practical & coding questions
+    Part 4 — Behavioral, fresher strategy & revision plan
+
+PART 1 — BACKEND
+1.1 Node.js
+⭐ What is Node.js?
+
+💬 A JavaScript runtime built on Chrome's V8 engine that lets you run JS outside the browser (servers, CLIs, tools).
+
+    Event-driven, non-blocking I/O → handles thousands of concurrent connections with one main thread.
+    Uses libuv (C library) for the event loop and a thread pool for file system, DNS, crypto, etc.
+    Great for: APIs, real-time apps (chat), streaming, microservices. Weak at: heavy CPU work (image processing, big computations) unless you use worker threads or offload the job.
+
+⭐ Explain the Node.js event loop and its stages
+
+💬 The event loop is what lets single-threaded Node do non-blocking work: it hands slow operations (I/O, timers) to the OS/libuv and runs their callbacks when they finish.
+
+Phases, in order (one full cycle = one "tick"):
+# 	Phase 	What runs here
+1 	Timers 	setTimeout, setInterval callbacks whose time has expired
+2 	Pending callbacks 	Some deferred system callbacks (e.g., certain TCP errors)
+3 	Idle, prepare 	Internal use only
+4 	Poll 	Retrieves new I/O events, runs I/O callbacks (files, network); may wait here if nothing else is scheduled
+5 	Check 	setImmediate callbacks
+6 	Close callbacks 	socket.on('close'), etc.
+
+Between phases, Node drains two queues: process.nextTick queue first, then the promise microtask queue.
+
+🧪 Classic output question (CommonJS):
+
+console.log('1 sync');
+setTimeout(() => console.log('4 timeout'), 0);
+setImmediate(() => console.log('5 immediate'));
+Promise.resolve().then(() => console.log('3 promise'));
+process.nextTick(() => console.log('2 nextTick'));
+// Output: 1 sync → 2 nextTick → 3 promise → 4 timeout → 5 immediate
+
+    Order of timeout vs immediate at the top level isn't guaranteed. Inside an I/O callback, setImmediate always fires first.
+
+Priority to remember: synchronous code → nextTick → promises (microtasks) → timers → poll (I/O) → setImmediate.
+⭐ What are Node.js streams?
+
+💬 Streams let you process data in chunks as it arrives instead of loading the whole thing into memory.
+Type 	Meaning 	Example
+Readable 	source of data 	fs.createReadStream, HTTP request
+Writable 	destination 	fs.createWriteStream, HTTP response
+Duplex 	both 	TCP socket
+Transform 	modifies data while passing through 	zlib.createGzip()
+
+Why use them: low memory (a 2 GB file doesn't need 2 GB RAM), faster time-to-first-byte, composable with .pipe() / pipeline(). Backpressure: when the writable side is slower than the readable side, the stream signals the reader to pause so memory doesn't blow up (pipe/pipeline handle this for you).
+
+const { pipeline } = require('stream/promises');
+const fs = require('fs');
+const zlib = require('zlib');
+
+await pipeline(
+  fs.createReadStream('big.log'),
+  zlib.createGzip(),
+  fs.createWriteStream('big.log.gz')
+);
+
+Blocking vs non-blocking
+
+    Blocking: the thread waits (e.g., fs.readFileSync) → every other request is stuck.
+    Non-blocking: start the work, continue, handle the result in a callback/promise (fs.promises.readFile).
+    Rule: never use *Sync methods or heavy loops inside request handlers.
+
+CommonJS vs ES Modules
+	CommonJS 	ES Modules
+Syntax 	require() / module.exports 	import / export
+Loading 	synchronous 	asynchronous, static analysis
+Enable 	default in Node 	"type": "module" in package.json or .mjs
+EventEmitter (the base of event-driven Node)
+
+Many core modules (streams, http) extend EventEmitter: on() to listen, emit() to fire.
+
+const EventEmitter = require('events');
+const bus = new EventEmitter();
+bus.on('order:placed', (order) => console.log('Send email for', order.id));
+bus.emit('order:placed', { id: 42 });
+
+How do you scale a Node.js app?
+
+    Cluster module / PM2 — one process per CPU core.
+    Worker threads — for CPU-heavy tasks.
+    Load balancer (Nginx) across multiple instances; keep the app stateless (sessions in Redis/JWT).
+    Caching (Redis), message queues for background jobs.
+
+1.2 Express.js
+⭐ What is Express.js?
+
+💬 A minimal, unopinionated web framework on top of Node's http module that gives you routing, middleware, and request/response helpers so you can build APIs quickly.
+⭐ What is middleware in Express? Give examples
+
+💬 A function that runs between the request and the response, with access to req, res, and next(). It can modify the request, end the response, or pass control to the next middleware.
+
+const logger = (req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();                       // without this, the request hangs
+};
+app.use(logger);
+
+Types:
+Type 	Example
+Application-level 	app.use(logger)
+Router-level 	router.use(auth)
+Built-in 	express.json(), express.urlencoded(), express.static()
+Third-party 	cors, helmet, morgan, cookie-parser, express-rate-limit
+Error-handling 	4 arguments: (err, req, res, next)
+
+Order matters — middleware runs top to bottom in the order you register it. Common use-cases: authentication, logging, validation, parsing bodies, rate limiting.
+⭐ How does the request flow from frontend to backend?
+
+    React sends an HTTP request (fetch / axios).
+    Express matches the route (method + path).
+    Middleware runs: CORS → body parsing → auth → validation.
+    Controller executes business logic.
+    Mongoose queries MongoDB.
+    Controller sends a JSON response → React updates state → UI re-renders.
+
+1. HTTP request
+
+Mongoose query
+
+data
+
+JSON response
+
+React UI
+
+Express routes + middleware
+
+Controller
+
+MongoDB
+⭐ 🧪 Create a simple REST API with Node.js + Express
+
+// server.js
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+
+const app = express();
+app.use(cors());
+app.use(express.json());                       // parse JSON bodies
+
+const User = mongoose.model('User', new mongoose.Schema(
+  { name: { type: String, required: true }, email: { type: String, required: true, unique: true } },
+  { timestamps: true }
+));
+
+// wrapper so async errors reach the error handler (Express 4)
+const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
+
+app.get('/api/users', wrap(async (req, res) => res.json(await User.find().lean())));
+
+app.get('/api/users/:id', wrap(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  res.json(user);
+}));
+
+app.post('/api/users', wrap(async (req, res) => {
+  const user = await User.create(req.body);    // validate input first in real apps
+  res.status(201).json(user);
+}));
+
+app.put('/api/users/:id', wrap(async (req, res) => {
+  const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  res.json(user);
+}));
+
+app.delete('/api/users/:id', wrap(async (req, res) => {
+  await User.findByIdAndDelete(req.params.id);
+  res.status(204).end();
+}));
+
+app.use((req, res) => res.status(404).json({ message: 'Route not found' }));   // 404
+app.use((err, req, res, next) => {                                              // central error handler
+  console.error(err);
+  res.status(err.status || 500).json({ message: err.message || 'Server error' });
+});
+
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => app.listen(process.env.PORT || 5000, () => console.log('API running')));
+
+Project structure to mention: models/ · controllers/ · routes/ · middleware/ · config/ · utils/ (routes → controllers → services/models), with secrets in .env.
+REST basics (quick table)
+Method 	Purpose 	Success code
+GET 	read 	200
+POST 	create 	201
+PUT / PATCH 	replace / partially update 	200
+DELETE 	remove 	204
+
+Common errors: 400 bad input · 401 not authenticated · 403 not allowed · 404 not found · 409 conflict · 422 validation failed · 429 too many requests · 500 server error. REST principles: stateless, resource-based URLs (/users/5, not /getUser), uniform interface, proper status codes. PUT is idempotent (same call twice = same result); POST is not.
+⭐ How does error handling work in Express?
+
+    Sync errors thrown in a handler are caught by Express automatically.
+    Async errors: in Express 4 you must try/catch + next(err) (or use a wrapper like wrap above). Express 5 forwards rejected promises from async handlers automatically.
+    Error-handling middleware has four parameters and goes last: (err, req, res, next).
+    Add a 404 handler before it for unknown routes.
+    Use a custom error class (AppError(message, statusCode)) so controllers can throw meaningful errors.
+    Don't leak stack traces in production; log them instead.
+    Process-level safety net: handle unhandledRejection / uncaughtException (log, then exit gracefully — let PM2/Docker restart).
+
+class AppError extends Error {
+  constructor(message, status) { super(message); this.status = status; }
+}
+throw new AppError('Email already registered', 409);
+
+⭐ Authentication & authorization (JWT flow)
+
+    Authentication = who are you? Authorization = what can you do?
+    Register: hash the password with bcrypt (10–12 salt rounds) → never store plain text.
+    Login: compare with bcrypt.compare → sign a JWT (jwt.sign({ id, role }, SECRET, { expiresIn: '15m' })) → send to client.
+    Protected routes: middleware verifies the token.
+    Where to store the token: httpOnly + secure + sameSite cookie (safe from XSS) vs localStorage (easy, but readable by injected scripts). Use a short-lived access token + refresh token for real apps.
+
+const jwt = require('jsonwebtoken');
+
+const auth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];   // "Bearer <token>"
+  if (!token) return res.status(401).json({ message: 'No token' });
+  try { req.user = jwt.verify(token, process.env.JWT_SECRET); next(); }
+  catch { res.status(401).json({ message: 'Invalid or expired token' }); }
+};
+
+const allow = (...roles) => (req, res, next) =>
+  roles.includes(req.user.role) ? next() : res.status(403).json({ message: 'Forbidden' });
+
+app.delete('/api/users/:id', auth, allow('admin'), deleteUser);
+
+JWT vs sessions: JWT is stateless (server stores nothing, hard to revoke); sessions are stateful (server stores them, easy to revoke, needs shared store like Redis when scaled).
+Security checklist for Express APIs
+Risk 	Defense
+Insecure headers 	helmet
+Cross-origin abuse 	configure cors with an allow-list, not *
+Brute force / DoS 	express-rate-limit on login & public routes
+Bad input / injection 	validate with Zod / Joi / express-validator
+NoSQL injection ({"$gt": ""} in body) 	validate types, express-mongo-sanitize
+XSS 	escape output, httpOnly cookies, CSP
+CSRF (cookie auth) 	sameSite cookies, CSRF tokens
+Secrets in code 	environment variables, never commit .env
+Data in transit 	HTTPS everywhere
+What is CORS?
+
+Browsers block a page on origin A from reading responses from origin B unless B's server sends the right headers (Access-Control-Allow-Origin, etc.). Origin = protocol + domain + port. The cors middleware sets these headers; preflight OPTIONS requests are sent first for non-simple requests.
+1.3 MongoDB & Mongoose
+⭐ What is MongoDB?
+
+💬 An open-source NoSQL document database that stores data as flexible JSON-like documents (BSON), instead of rows and tables.
+
+    Schema is flexible; documents in one collection can differ.
+    Scales horizontally (sharding), high availability via replica sets.
+    Rich query language + aggregation framework.
+
+⭐ What is a collection?
+
+A collection is a group of MongoDB documents (like a table in SQL). A document is one record (like a row). A database holds collections.
+SQL 	MongoDB
+Database 	Database
+Table 	Collection
+Row 	Document
+Column 	Field
+JOIN 	$lookup / populate() / embedding
+Primary key 	_id (ObjectId, auto-created)
+SQL vs NoSQL — when to pick which
+
+    MongoDB: evolving schemas, hierarchical data, rapid development, high write volume, horizontal scale.
+    SQL: strongly relational data, complex joins, strict schema, heavy multi-table transactions (banking).
+
+⭐ What is indexing in MongoDB?
+
+💬 An index is a data structure (B-tree) that lets MongoDB find documents without scanning the whole collection.
+
+    Without index → COLLSCAN (reads every document). With index → IXSCAN.
+    Types: single-field, compound, unique, text, TTL (auto-delete after time), geospatial, multikey (arrays).
+    Trade-offs: faster reads, but slower writes and extra memory/disk. Don't index everything.
+    Compound index rule of thumb (ESR): Equality fields first, then Sort, then Range.
+    Check with .explain('executionStats').
+
+db.users.createIndex({ email: 1 }, { unique: true });
+db.orders.createIndex({ userId: 1, createdAt: -1 });
+db.sessions.createIndex({ createdAt: 1 }, { expireAfterSeconds: 3600 });   // TTL
+
+// Mongoose
+userSchema.index({ email: 1 }, { unique: true });
+
+⭐ What is sharding in MongoDB?
+
+💬 Sharding = splitting a large dataset across multiple machines (horizontal scaling) so no single server holds everything.
+
+    Shards: servers holding a subset of data (each is usually a replica set).
+    mongos: the query router — apps connect to it.
+    Config servers: store metadata (which chunk lives on which shard).
+    Shard key: the field that decides where a document goes. A good key has high cardinality, even distribution, and matches your query patterns. A bad key (e.g., a monotonically increasing timestamp) creates a hot shard.
+    Sharding vs replication: sharding = scale (split data); replication = availability (copies of the same data).
+
+Replication
+
+A replica set = one primary (handles writes) + several secondaries (copy data). If the primary fails, an election promotes a secondary automatically → high availability, and secondaries can serve reads.
+Aggregation pipeline
+
+Data flows through stages: $match → $group → $sort → $project → $lookup (join) → $limit.
+
+// total spent per user, top 5
+db.orders.aggregate([
+  { $match: { status: 'paid' } },
+  { $group: { _id: '$userId', total: { $sum: '$amount' } } },
+  { $sort: { total: -1 } },
+  { $limit: 5 }
+]);
+
+Tip: put $match early so later stages process less data (and it can use an index).
+Embedding vs referencing (schema design)
+
+    Embed when data is read together, one-to-few, and the child doesn't live on its own (address inside user, comments inside a small post).
+    Reference (store _id) when data is large, shared across documents, or grows unbounded (orders → user). Avoid documents > 16 MB (document size limit).
+
+Mongoose essentials
+
+    Schema (structure + validation) → Model (interface to a collection).
+    Middleware/hooks: e.g., pre('save') to hash passwords.
+    populate() = reference-based "join"; virtuals; lean() returns plain objects (faster, read-only).
+
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+⭐ How can you optimize backend/DB queries?
+
+    Index frequently filtered/sorted fields (verify with .explain()).
+    Avoid the N+1 problem (1 query for a list + 1 per item) → use populate(), $lookup, or batch with $in.
+    Limit fields with .select('name email') to shrink payloads.
+    Paginate with limit/skip; for large collections use range-based pagination (_id > lastId) because big skip values are slow.
+    Use .lean() for read-only queries.
+    Cache hot data in Redis.
+    Profile with MongoDB Atlas Performance Advisor, .explain(), or the profiler.
+    Move heavy processing to background jobs.
+
+Transactions
+
+Single-document operations are atomic. Multi-document ACID transactions are supported (need a replica set) via sessions — use them for things like money transfers, but design schemas so most operations touch one document.
+Handy query operators
+
+$gt $lt $in $nin $or $and · update: $set $inc $push $pull $addToSet · find() findOne() updateOne() deleteMany() countDocuments().
+1.4 API design, architecture & DevOps
+⭐ API is slow — what do you check?
+
+Work layer by layer and measure before changing anything.
+Layer 	What to check 	Tools
+Frontend 	Big payloads, too many requests, waterfall calls, unnecessary re-renders 	DevTools Network tab, Lighthouse
+Network 	Latency, no compression, no CDN, no HTTP caching 	gzip/brotli, CDN, Cache-Control
+Backend 	Slow middleware, blocking/sync code, inefficient loops, N+1 calls, missing pagination 	logs with timings, console.time, APM (New Relic, Datadog), Node --inspect profiler
+Database 	Missing indexes, full scans, huge documents 	.explain(), Atlas profiler
+Infra 	CPU/memory saturation, cold starts, connection pool limits, far-away region 	server metrics, top, cloud dashboards
+External calls 	Slow third-party APIs 	timeouts, caching, parallelize with Promise.all
+REST vs GraphQL — and have you used GraphQL?
+	REST 	GraphQL
+Endpoints 	many (/users, /posts) 	one (/graphql)
+Data shape 	fixed by server 	client asks for exactly what it needs
+Over/under-fetching 	common 	avoided
+Caching 	easy (HTTP) 	harder
+Learning curve 	low 	higher
+
+Benefits: no over-fetching, one round trip for nested data, strongly typed schema, great tooling. Drawbacks: caching, N+1 in resolvers (fix with DataLoader), complexity/security (query depth limiting).
+
+    If you haven't used it: "I've built REST APIs; I understand GraphQL's schema/query/resolver model and its trade-offs, and I'd pick it for apps with many clients needing different data shapes."
+
+⭐ Microservices — and how would you split a MERN app?
+
+Monolith: one codebase/deployable. Microservices: small, independently deployable services, each owning its data.
+
+Example split for an e-commerce MERN app: Auth/User service · Product service · Order service · Payment service · Notification service — behind an API Gateway, each with its own database.
+
+    Communication: synchronous (REST/gRPC) or asynchronous (message broker / events).
+    Benefits: independent scaling & deployment, fault isolation, team autonomy.
+    Challenges: distributed transactions (Saga pattern), network latency, debugging/observability, data consistency, DevOps overhead.
+    Frontend stays a React app (or micro-frontends) calling the gateway.
+
+    Fresher-friendly line: "For a small team I'd start with a modular monolith and extract services only when scaling or team boundaries demand it."
+
+Event-driven architecture & Kafka
+
+EDA: services communicate by producing and reacting to events ("OrderPlaced") through a broker, rather than calling each other directly.
+
+    Producer publishes → broker stores/routes → consumers react.
+    Benefits: loose coupling, async processing, easy to add new consumers, absorbs traffic spikes.
+    Kafka: distributed, durable log of events. Key terms: topic, partition (parallelism + ordering within a partition), consumer group, offset. Best for high-throughput streams and replayable events.
+    Alternatives: RabbitMQ (task queues, routing), Redis Pub/Sub or BullMQ (simple job queues in Node).
+
+    If you haven't used Kafka: say so, then explain the concepts above and mention you've used or would use BullMQ/Redis for background jobs.
+
+⭐ Real-time updates (WebSockets)
+
+    WebSocket: persistent, full-duplex connection (server can push). Library: Socket.IO (adds rooms, reconnection, fallbacks).
+    Alternatives: SSE (server → client only, simple), long polling (fallback).
+    Scaling: use the Redis adapter and sticky sessions across multiple instances.
+
+// server
+const { Server } = require('socket.io');
+const io = new Server(httpServer, { cors: { origin: 'http://localhost:5173' } });
+io.on('connection', (socket) => {
+  socket.on('chat:message', (msg) => io.emit('chat:message', msg));
+});
+
+// React client
+useEffect(() => {
+  const socket = io('http://localhost:5000');
+  socket.on('chat:message', (m) => setMessages((prev) => [...prev, m]));
+  return () => socket.disconnect();             // cleanup!
+}, []);
+
+⭐ What is Docker? Have you containerized a Node app?
+
+💬 Docker packages an app with its dependencies into an image; a running instance is a container. It removes "works on my machine" problems.
+
+    Image = blueprint (read-only layers) · Container = running instance · Dockerfile = recipe · Compose = run multiple containers (API + DB).
+
+FROM node:22-alpine              # pin a current LTS
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev            # deterministic install, cached layer
+COPY . .
+EXPOSE 5000
+CMD ["node", "server.js"]
+
+# docker-compose.yml
+services:
+  api:
+    build: ./server
+    ports: ["5000:5000"]
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/app     # service name, not localhost
+    depends_on: [mongo]
+  mongo:
+    image: mongo:7
+    volumes: [mongo-data:/data/db]
+volumes:
+  mongo-data:
+
+⭐ App works locally but fails inside Docker — how to debug?
+
+Check in this order:
+
+    Logs: docker logs <container> — read the actual error first.
+    Environment variables missing (.env isn't copied/loaded in the container).
+    Host/port binding: app must listen on 0.0.0.0, and the port must be published (-p 5000:5000).
+    localhost inside a container ≠ your machine. Use the service name (mongo) to reach other containers.
+    Node version or OS mismatch, native modules built on your OS (add node_modules to .dockerignore, install inside the image).
+    Missing build step or wrong CMD/working directory; case-sensitive file paths on Linux.
+    Permissions / read-only filesystem; memory limits (OOM kill → exit code 137).
+    Get inside: docker exec -it <container> sh and run things manually.
+
+⭐ CI/CD pipeline fails intermittently — how to fix?
+
+💬 Intermittent = non-deterministic. Find what differs between runs.
+
+    Read the logs of failed vs passed runs; find the common failing step.
+    Flaky tests: race conditions, async not awaited, shared state/DB between tests, reliance on time or order, real network calls → isolate, mock, and fix root cause (quarantine while fixing).
+    Unpinned dependencies → use lockfile + npm ci.
+    Resource limits / timeouts on the runner; parallel jobs competing for ports or DB.
+    Cache corruption → clear the cache and re-run.
+    External services down/rate-limited (npm registry, Docker Hub) → retry with backoff, use mirrors.
+    Environment drift between local and CI → same Node version, same container image.
+    Add retries only as a last resort; fix the cause, then add better logging/artifacts to catch it next time.
+
+⭐ How do you mock API calls in tests?
+
+    Node backend: jest.mock('axios'), nock (intercept HTTP), supertest for hitting your Express app, mongodb-memory-server for an in-memory DB.
+    React: MSW (Mock Service Worker) intercepts real network requests, or jest.fn() / jest.spyOn(global, 'fetch'), with React Testing Library.
+
+// Backend
+const request = require('supertest');
+jest.mock('axios');
+axios.get.mockResolvedValue({ data: { rate: 130 } });
+
+test('GET /api/users returns 200', async () => {
+  const res = await request(app).get('/api/users');
+  expect(res.status).toBe(200);
+});
+
+// React + MSW
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+const server = setupServer(
+  http.get('/api/users', () => HttpResponse.json([{ id: 1, name: 'Asha' }]))
+);
+
+Have you deployed MERN on the cloud?
+
+A solid fresher answer (adapt to what you have actually done):
+
+    Frontend: build React (npm run build) → host on Vercel / Netlify (or S3 + CloudFront on AWS).
+    Backend: Node API on Render / Railway / AWS EC2 / Elastic Beanstalk, run with PM2 or Docker, behind Nginx (reverse proxy + HTTPS).
+    Database: MongoDB Atlas (allow-list IPs, use a DB user, connection string in env vars).
+    Config: env vars, CORS allow-list for the deployed frontend URL, NODE_ENV=production.
+    CI/CD: GitHub Actions: install → lint → test → build → deploy.
+    AWS vocabulary worth knowing: EC2 (VM), S3 (storage), CloudFront (CDN), IAM (permissions), Route 53 (DNS), Elastic Beanstalk (managed deploy).
+
+    Be honest about your level: "I deployed X to Render with Atlas; I understand the AWS equivalent is EC2/Beanstalk + Atlas."
+
+PART 2 — FRONTEND
+2.1 JavaScript fundamentals (asked in almost every MERN interview)
+⭐ Call by value vs call by reference
+
+💬 JavaScript is always pass-by-value. For primitives the value itself is copied; for objects the value is a reference (address), so the function gets a copy of the reference ("call by sharing").
+
+function change(num, obj) {
+  num = 100;            // only changes the local copy
+  obj.name = 'Ram';     // mutates the SHARED object → caller sees it
+  obj = { name: 'X' };  // re-assigning the local reference → caller does NOT see it
+}
+let n = 1, o = { name: 'Sita' };
+change(n, o);
+console.log(n, o.name);  // 1 'Ram'
+
+	Primitives (number, string, boolean, null, undefined, symbol, bigint) 	Objects (object, array, function)
+Stored 	by value 	by reference
+Copy with = 	independent copy 	same object shared
+Compared with === 	by value 	by reference
+⭐ What is hoisting? Why do let and const throw an error before initialization?
+
+💬 Hoisting = declarations are registered during the creation phase of the execution context, before the code runs.
+
+    var → hoisted and initialized as undefined.
+    Function declarations → hoisted with their whole body.
+    let / const / class → hoisted but not initialized → they sit in the Temporal Dead Zone (TDZ) until the declaration line runs. Accessing them there throws ReferenceError.
+
+console.log(a);   // undefined   (var)
+console.log(b);   // ReferenceError: Cannot access 'b' before initialization  (TDZ)
+var a = 1;
+let b = 2;
+
+⭐ What is the Temporal Dead Zone?
+
+The time between entering a scope and the line where a let/const variable is initialized. It exists to catch bugs from using variables before they're defined (and makes const semantics safe).
+var vs let vs const
+	var 	let 	const
+Scope 	function 	block 	block
+Re-declare 	yes 	no 	no
+Re-assign 	yes 	yes 	no (but object contents can change)
+Hoisting 	initialized undefined 	TDZ 	TDZ
+⭐ Difference between deep copy and shallow copy (practical!)
+
+💬 Shallow copy copies top-level properties; nested objects are still shared references. Deep copy duplicates everything recursively.
+
+const original = { name: 'Aarav', address: { city: 'Kathmandu' } };
+
+// SHALLOW copy (nested `address` is shared)
+const shallow1 = { ...original };
+const shallow2 = Object.assign({}, original);
+shallow1.address.city = 'Pokhara';
+console.log(original.address.city);   // 'Pokhara'  ← original changed!
+
+// DEEP copy
+const deep1 = structuredClone(original);              // modern, best choice
+const deep2 = JSON.parse(JSON.stringify(original));   // works, but loses functions/undefined/Date→string, breaks on circular refs
+const deep3 = _.cloneDeep(original);                  // lodash
+deep1.address.city = 'Lalitpur';
+console.log(original.address.city);   // unchanged
+
+⭐ null vs undefined
+	undefined 	null
+Meaning 	variable declared but no value assigned / missing property / no return 	intentional "no value"
+Set by 	JavaScript 	the programmer
+typeof 	'undefined' 	'object' (a historic bug)
+== vs === 	null == undefined → true, null === undefined → false 	
+⭐ Function expression vs function declaration
+
+sayHi();                       // works — declarations are fully hoisted
+function sayHi() { console.log('hi'); }
+
+sayBye();                      // TypeError / ReferenceError — not ready yet
+const sayBye = function () { console.log('bye'); };
+
+    Declaration: function name() {} — hoisted completely, can be called before it's defined.
+    Expression: function assigned to a variable (anonymous or named) — only available after the assignment line. Expressions can be used as values, callbacks, and IIFEs.
+    Arrow functions are always expressions, have no own this, no arguments, can't be used as constructors.
+
+⭐ What is the DOM?
+
+💬 The Document Object Model is the browser's tree representation of an HTML page. Each tag becomes a node object that JavaScript can read and change (document.querySelector, createElement, addEventListener, .textContent). It's an API, not part of the JS language. Why React uses a Virtual DOM: direct DOM updates are expensive (reflow/repaint), so React computes changes in memory first and touches the real DOM minimally.
+⭐ 🧪 Output of console.log(3 + "3")
+
+"33" — + with a string does concatenation; the number is coerced to a string. Related traps: "3" - 1 → 2 · "3" * "3" → 9 · true + 1 → 2 · [] + [] → "" · null + 1 → 1 · undefined + 1 → NaN · 0.1 + 0.2 === 0.3 → false · typeof NaN → 'number'.
+== vs ===
+
+== converts types before comparing ('5' == 5 → true); === compares value and type ('5' === 5 → false). Always use ===.
+Closures
+
+A function that remembers the variables of its outer scope even after the outer function has finished.
+
+function counter() {
+  let count = 0;
+  return () => ++count;      // remembers `count`
+}
+const next = counter();
+next(); next();              // 1, 2
+
+Uses: data privacy, memoization, callbacks, React hooks (a "stale closure" is a classic bug).
+Async JavaScript
+
+    Callback → Promise → async/await (sugar over promises).
+    Microtasks (promises) run before macrotasks (setTimeout, I/O).
+    Promise.all (fail fast, parallel), Promise.allSettled (wait for all), Promise.race.
+    Always handle errors: try/catch with await, or .catch().
+
+async function load() {
+  try {
+    const [users, posts] = await Promise.all([fetchUsers(), fetchPosts()]);   // parallel
+  } catch (err) { console.error(err); }
+}
+
+Event bubbling, capturing & delegation
+
+Events travel capture (down) → target → bubble (up). Delegation = attach one listener to a parent and check event.target — great for lists and dynamic elements. stopPropagation() stops the travel; preventDefault() cancels default browser behavior.
+Other quick ones
+
+    map (transform) · filter (subset) · reduce (accumulate) · forEach (no return value).
+    this depends on how a function is called (arrow functions use the surrounding this).
+    Debounce (run after user stops typing) vs throttle (run at most once per interval).
+    Spread ... / rest ... · destructuring · optional chaining ?. · nullish coalescing ?? (only null/undefined, unlike ||).
+
+2.2 React
+⭐ What is React? What is the latest version?
+
+💬 A JavaScript library for building user interfaces using reusable components and a declarative approach (you describe what the UI should look like for a given state; React works out how to update the DOM).
+
+    Key ideas: components, JSX, props & state, one-way data flow, Virtual DOM, hooks.
+    Latest version: React 19.3 is listed on react.dev (released 9 Sept 2026). Re-check react.dev/versions right before your interview.
+    React 19 highlights: Actions, useActionState, useOptimistic, use(), ref as a normal prop (no forwardRef needed), better document metadata, stable Server Components. 19.2 added <Activity> and useEffectEvent. The React Compiler (auto-memoization) reached 1.0.
+
+⭐ What is JSX?
+
+💬 JavaScript XML — a syntax extension that lets you write UI markup inside JavaScript. It isn't valid JS by itself; Babel/SWC compiles it to function calls (React.createElement / the new JSX runtime).
+
+    Must return one root element (use <>...</> fragments).
+    Use className, htmlFor, camelCase attributes; {} for JS expressions; close every tag.
+    JSX escapes values by default → protects from XSS (except dangerouslySetInnerHTML).
+
+⭐ Virtual DOM, Reconciliation & the diffing algorithm
+
+    Virtual DOM: a lightweight JS object tree representing the UI.
+    Reconciliation: when state/props change, React builds a new virtual tree, diffs it against the previous one, and applies only the minimum real DOM updates.
+    Diffing heuristics (O(n)):
+        Elements of different types → tear down old subtree, build new one.
+        Same type → keep the DOM node, update changed attributes/props.
+        Lists use keys to match items between renders — use stable IDs, not array index when order can change.
+    Fiber (React's engine) splits rendering into units of work, enabling concurrent rendering (interruptible, prioritized updates).
+    Two phases: Render (pure calculation, can be paused) → Commit (DOM updates, layout effects, useEffect scheduled).
+
+⭐ Explain lifecycle methods
+
+Class components have three phases; hooks cover the same needs.
+Phase 	Class method 	Hook equivalent
+Mount 	constructor, render, componentDidMount 	useEffect(() => {...}, [])
+Update 	shouldComponentUpdate, render, componentDidUpdate 	useEffect(() => {...}, [dep]), React.memo
+Unmount 	componentWillUnmount 	cleanup: useEffect(() => () => {...}, [])
+Error 	getDerivedStateFromError, componentDidCatch 	Error Boundary (still a class, or a library like react-error-boundary)
+⭐ What are React Hooks?
+
+💬 Functions (use...) that let function components use state, lifecycle behavior, context, refs, etc.
+
+Rules of Hooks: (1) call hooks only at the top level (not inside loops/conditions/nested functions), (2) call them only from React function components or custom hooks.
+⭐ 🧪 useState, useEffect, useMemo, useCallback (with examples)
+
+// useState — local state
+const [count, setCount] = useState(0);
+setCount(prev => prev + 1);            // functional update when new state depends on old
+
+// useEffect — side effects (fetching, subscriptions, timers)
+useEffect(() => {
+  const controller = new AbortController();
+  fetch(`/api/users/${id}`, { signal: controller.signal })
+    .then(r => r.json()).then(setUser).catch(() => {});
+  return () => controller.abort();     // cleanup on unmount / before re-run
+}, [id]);                              // dependency array: [] = once, [id] = when id changes, none = every render
+
+// useMemo — cache an EXPENSIVE COMPUTED VALUE
+const sorted = useMemo(() => [...items].sort(compare), [items]);
+
+// useCallback — cache a FUNCTION so its reference stays stable
+const handleClick = useCallback(() => save(id), [id]);
+<Child onClick={handleClick} />        // useful when Child is wrapped in React.memo
+
+// useRef — mutable value that doesn't trigger re-render / access DOM
+const inputRef = useRef(null);
+<input ref={inputRef} />; inputRef.current.focus();
+
+// useContext — read context without prop drilling
+const theme = useContext(ThemeContext);
+
+// useReducer — complex state logic (next-state = f(state, action))
+const [state, dispatch] = useReducer(reducer, initialState);
+
+Dev-mode note: in <StrictMode>, effects run twice on mount to help you find missing cleanup. useMemo(fn, deps) ≈ useCallback(() => fn, deps) but one caches the result, the other caches the function.
+⭐ useMemo vs useLayoutEffect (they solve different problems)
+	useMemo 	useLayoutEffect
+Purpose 	Cache a computed value between renders 	Run a side effect synchronously after DOM changes
+Runs 	During render 	After DOM mutation, before the browser paints
+Returns 	the memoized value 	optional cleanup function
+Typical use 	expensive calculation, stable object identity 	measure element size/position, prevent flicker
+Blocks paint? 	it's part of render 	Yes — keep it light
+
+useEffect vs useLayoutEffect: useEffect runs after paint (non-blocking, default choice). useLayoutEffect runs before paint (blocking) — use only when you must read layout and update synchronously (tooltips, scroll position).
+Custom hooks
+
+A function starting with use that reuses stateful logic across components.
+
+function useFetch(url) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    const c = new AbortController();
+    fetch(url, { signal: c.signal })
+      .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+      .then(setData)
+      .catch(e => e.name !== 'AbortError' && setError(e))
+      .finally(() => setLoading(false));
+    return () => c.abort();
+  }, [url]);
+  return { data, loading, error };
+}
+
+    In real projects, prefer TanStack Query (React Query) for server data: caching, refetching, retries, loading/error states.
+
+⭐ Pure components, HOCs, controlled & uncontrolled components
+
+    Pure component: renders the same output for the same props/state. React.PureComponent (class) or React.memo (function) skip re-render when props are shallowly equal.
+    Higher-Order Component (HOC): a function that takes a component and returns an enhanced component (withAuth(Dashboard)). Mostly replaced by hooks today.
+    Controlled component: form value is stored in React state (value + onChange) → React is the single source of truth.
+    Uncontrolled component: the DOM holds the value; read it with a ref (or FormData). Simpler for basic forms/file inputs.
+
+// controlled
+<input value={name} onChange={e => setName(e.target.value)} />
+// uncontrolled
+<input defaultValue="Ram" ref={inputRef} />
+
+// HOC example
+const withAuth = (Component) => (props) =>
+  isLoggedIn() ? <Component {...props} /> : <Navigate to="/login" />;
+
+Props vs state
+
+Props: read-only inputs passed from parent. State: data owned and changed inside the component (triggers re-render). Data flows down, events flow up (callbacks).
+⭐ Explain Routers (React Router)
+
+💬 Enables client-side routing in a single-page app: changes the URL and renders different components without a full page reload.
+
+    Core pieces: BrowserRouter/createBrowserRouter, Routes, Route, Link/NavLink, Outlet (nested routes), useNavigate, useParams, useSearchParams, Navigate.
+    In React Router v7 you import from react-router (react-router-dom still works as a re-export).
+    Protected route:
+
+function ProtectedRoute() {
+  const { user } = useAuth();
+  return user ? <Outlet /> : <Navigate to="/login" replace />;
+}
+
+<Routes>
+  <Route path="/login" element={<Login />} />
+  <Route element={<ProtectedRoute />}>
+    <Route path="/dashboard" element={<Dashboard />} />
+    <Route path="/users/:id" element={<UserDetail />} />
+  </Route>
+  <Route path="*" element={<NotFound />} />
+</Routes>
+
+SPA note: the server must serve index.html for all routes (or you'll get 404 on refresh).
+2.3 State management
+⭐ Different ways to manage state in React
+Kind 	Where it lives 	Tools
+Local (UI) state 	inside one component 	useState, useReducer
+Lifted state 	nearest common parent 	props
+Global (client) state 	app-wide 	Context, Redux Toolkit, Zustand, Jotai
+Server state 	data from your API (cached, can go stale) 	TanStack Query, SWR, RTK Query
+URL state 	in the URL (filters, page, id) 	useSearchParams, route params
+Form state 	inputs/validation 	React Hook Form, Formik
+
+Rule: keep state as local as possible; lift or globalize only when needed.
+⭐ Context API vs Redux — when to use each
+	Context API 	Redux (Toolkit)
+What it is 	A way to pass data without prop drilling 	A predictable state container with a defined update pattern
+Setup 	tiny, built in 	more code, extra library
+Re-renders 	all consumers re-render when the value changes 	components re-render only if their selected slice changes
+Tools 	none built in 	Redux DevTools, time-travel, middleware (thunks)
+Best for 	theme, auth user, language, low-frequency updates 	large apps, complex/frequently changing shared state, many devs
+⭐ What is Redux and its components?
+
+💬 Redux is a predictable, centralized state container: the whole app state lives in one store, and it can only change by dispatching actions handled by pure reducers.
+
+Flow (one-way): UI → dispatch(action) → reducer computes new state → store updates → subscribed components re-render.
+Component 	Role
+Store 	holds the complete state tree
+Action 	plain object describing what happened { type, payload }
+Reducer 	pure function (state, action) => newState
+Dispatch 	sends an action to the store
+Selector 	reads/derives data from state (useSelector)
+Middleware 	intercepts actions (e.g., redux-thunk for async, logger)
+
+Three principles: single source of truth · state is read-only (change only via actions) · changes are made with pure reducers.
+
+// Redux Toolkit (the modern way)
+import { configureStore, createSlice } from '@reduxjs/toolkit';
+
+const counterSlice = createSlice({
+  name: 'counter',
+  initialState: { value: 0 },
+  reducers: { increment: (state) => { state.value += 1; } },   // Immer allows "mutating" syntax safely
+});
+export const { increment } = counterSlice.actions;
+export const store = configureStore({ reducer: { counter: counterSlice.reducer } });
+
+// In a component
+const value = useSelector((s) => s.counter.value);
+const dispatch = useDispatch();
+<button onClick={() => dispatch(increment())}>{value}</button>
+
+Async: createAsyncThunk (or RTK Query for API data).
+⭐ Managing global state in a large app without tight coupling
+
+    Split the store into feature slices (auth, cart, ui); components read via selectors, not internals.
+    Wrap logic in custom hooks (useCart()) so components don't know whether Redux, Context, or Zustand is underneath.
+    Put server data in TanStack Query, not the global store.
+    Use Context only for rarely-changing values; split contexts (AuthContext, ThemeContext).
+    Communicate through events/callbacks and well-defined interfaces, organize by feature folders.
+
+2.4 Performance
+⭐ Unnecessary re-renders — how to identify and fix
+
+A component re-renders when: its state changes, its parent re-renders, or a context it consumes changes.
+
+Identify:
+
+    React DevTools Profiler ("why did this render?", flamegraph), highlight updates.
+    console.log in render, why-did-you-render library, browser Performance tab.
+
+Fix (in this order — measure first!):
+
+    Colocate state — move state down into the component that needs it.
+    Split components so only the changing part re-renders.
+    React.memo for pure child components.
+    useCallback / useMemo to keep function/object props referentially stable (only useful together with React.memo).
+    Correct keys; avoid creating objects/arrays/functions inline in props of memoized children.
+    Split/optimize context (or use selectors with Redux/Zustand).
+    Virtualize long lists (react-window, react-virtual).
+    Code-split with React.lazy + Suspense; lazy-load images; debounce inputs.
+    React Compiler can auto-memoize for you in modern setups.
+
+    Don't over-memoize — memoization has its own cost.
+
+Other useful concepts
+
+    React.lazy + Suspense: load components on demand and show a fallback.
+    Error Boundaries: catch render errors in a subtree and show fallback UI.
+    Portals, Fragments, Refs & forwardRef (React 19: ref is a plain prop).
+    CSR vs SSR/SSG: client-side rendering (default with Vite/CRA) vs server rendering for SEO/first paint (Next.js).
+    Keys: unique, stable IDs for list items — never random values generated on each render.
+
+PART 3 — PRACTICAL & CODING QUESTIONS
+
+Quick jump-back list:
+
+    console.log(3 + "3") → "33" (see 2.1)
+    Shallow and deep copy of { name, address: { city } } → see 2.1
+    Create a REST API with Node & Express → see 1.2
+    Protected route / auth middleware → see 1.2 and 2.2
+
+🧪 30-minute DSA question — likely candidates
+
+Two Sum (hash map, O(n))
+
+function twoSum(nums, target) {
+  const seen = new Map();                     // value -> index
+  for (let i = 0; i < nums.length; i++) {
+    const need = target - nums[i];
+    if (seen.has(need)) return [seen.get(need), i];
+    seen.set(nums[i], i);
+  }
+  return [];
+}
+
+Valid Parentheses (stack, O(n))
+
+function isValid(s) {
+  const pairs = { ')': '(', ']': '[', '}': '{' };
+  const stack = [];
+  for (const ch of s) {
+    if (ch in pairs) { if (stack.pop() !== pairs[ch]) return false; }
+    else stack.push(ch);
+  }
+  return stack.length === 0;
+}
+
+Palindrome / first non-repeating character / count frequency
+
+const isPalindrome = (s) => {
+  const t = s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return t === [...t].reverse().join('');
+};
+
+const firstUnique = (s) => {
+  const freq = {};
+  for (const c of s) freq[c] = (freq[c] || 0) + 1;
+  return [...s].find((c) => freq[c] === 1) ?? null;
+};
+
+Debounce (common "implement from scratch")
+
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
+Also practice: reverse a string/array, remove duplicates ([...new Set(arr)]), flatten nested array, FizzBuzz, merge two sorted arrays, binary search, group by key, Fibonacci with memoization, Array.prototype.map polyfill.
+
+How to handle a timed coding round:
+
+    Restate the problem and ask about edge cases (empty input, duplicates, negatives).
+    Give the brute-force approach first, state its complexity.
+    Improve it (hash map, two pointers, sorting), state time & space complexity.
+    Code cleanly, think aloud, then test with 2–3 examples (including an edge case).
+    If stuck, describe your approach anyway — partial credit is real.
+
+PART 4 — BEHAVIORAL, FRESHER STRATEGY & REVISION PLAN
+⭐ "Tell me about yourself" (60–90 seconds)
+
+Formula: Present → Past → Future. Fill in the brackets with your real details:
+
+    "I'm [Name], a BSc CSIT student at Tribhuvan University focused on full-stack development with the MERN stack. I've built [Project 1 — what it does, key features] and [Project 2 — e.g., a client/real-world project], where I worked on [REST APIs, JWT authentication, MongoDB schema design, React state management]. I enjoy [debugging / building clean APIs / understanding how things work under the hood], and I've also been learning [security basics like secure authentication and input validation] to write safer code. I'm now looking for an opportunity to grow as a [MERN/full-stack developer], and this role interests me because [specific reason: tech stack, product, learning environment]."
+
+How to explain a project (use this every time)
+
+    What it does and who it's for (one sentence).
+    Tech stack and why you chose it.
+    Your role and the most interesting feature you built.
+    A hard problem you solved (bug, performance issue, design decision) and how.
+    What you'd improve next (tests, caching, pagination, deployment).
+
+If you haven't used a technology (Kafka, AWS, GraphQL, microservices…)
+
+Never bluff. Use this pattern: "I haven't used it in production, but here's what I understand… and here's how I'd approach it / what I've used instead." Interviewers reward honest depth over fake breadth.
+Questions you can ask the interviewer
+
+    What does the tech stack and deployment process look like for this team?
+    How does the team do code reviews and mentor new developers?
+    What would success look like in the first 3 months?
+
+Revision priority (what to study first)
+Tier 	Topics 	Goal
+Tier 1 — must be flawless 	JS core (scope, hoisting, closures, this, async, copy, coercion) · React hooks & rendering · Virtual DOM/reconciliation · Node event loop · Express middleware & REST API · JWT auth · MongoDB indexing/aggregation/populate · MERN request flow · Context vs Redux 	Explain in your own words + write code
+Tier 2 — be comfortable 	Error handling · React performance · Streams · WebSockets · Docker basics · Testing/mocking · Deployment · Security checklist 	Explain clearly with an example
+Tier 3 — know the concepts 	Microservices · Kafka/event-driven · GraphQL · CI/CD debugging · Sharding 	Explain honestly at concept level
+Final-week checklist
+
+    Explain the event loop aloud in 60 seconds, with the nextTick/promise/timeout output example.
+    Write a full Express CRUD API with Mongoose + JWT middleware from memory.
+    Build a custom hook and a protected route from scratch.
+    Solve 10+ easy/medium problems (arrays, strings, hash maps, stack) on a timer.
+    Prepare a 2-minute walkthrough of each of your projects.
+    Refresh: useEffect dependency rules, key usage, controlled forms, populate, indexes.
+    Re-check the latest React and Node LTS versions the day before.
+
+    Good luck! In a fresher interview, clear fundamentals, honest answers, and calm problem-solving beat memorized buzzwords.
+
