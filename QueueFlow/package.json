@@ -1,0 +1,17 @@
+{
+  "name": "queueflow-day1",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n WEB,API \"npm run dev -w frontend\" \"npm run dev -w backend\"",
+    "seed": "npm run seed -w backend",
+    "typecheck": "npm run typecheck -w frontend && npm run typecheck -w backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}

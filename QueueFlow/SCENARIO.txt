@@ -1,0 +1,166 @@
+QUEUEFLOW TECHNOLOGIES
+DAY 1 - ENGINEERING SCENARIO
+========================================
+
+YOUR ROLE
+---------
+You joined QueueFlow Technologies today as a Junior Full-Stack Developer.
+
+Your team owns an internal customer-support product used by support agents.
+The product is already running. You are NOT starting a greenfield tutorial app.
+You have inherited an existing codebase and your first job is to make a change
+inside it without breaking what already works.
+
+
+WHAT HAPPENED BEFORE YOU JOINED
+-------------------------------
+QueueFlow originally focused on support tickets rather than customer management.
+
+Whenever somebody opened a support ticket, QueueFlow stored basic customer
+information in MongoDB. Over time the database accumulated many customer records.
+
+The Customer model therefore already exists in the backend.
+
+However, no proper Customer Directory was ever built.
+
+Support agents currently have an awkward process:
+
+1. A customer contacts support.
+2. The agent needs to identify the customer's account.
+3. There is no customer search screen in QueueFlow.
+4. Agents ask an operations/admin user to look the customer up manually.
+5. This delays ticket handling and wastes staff time.
+
+Last week Operations raised this as a recurring problem.
+
+Product reviewed the request and created ticket CUS-101.
+
+
+WHAT THE ENGINEERING TEAM ALREADY BUILT
+---------------------------------------
+The repository you received contains:
+
+FRONTEND
+- Next.js application
+- React + TypeScript
+- existing app layout/navigation
+- API helper used by the current dashboard
+- dashboard summary screen
+- /customers route placeholder
+
+BACKEND
+- Node.js + Express + TypeScript
+- MongoDB/Mongoose connection
+- existing Customer model
+- health endpoint
+- dashboard stats endpoint
+- shared async/error-handling utilities
+- database seed script containing enough development customers to test pagination
+
+The existing dashboard is intentionally small, but it proves that:
+
+Browser -> Next.js -> Express API -> MongoDB
+
+is already connected.
+
+You are expected to inspect these existing patterns before writing your feature.
+
+
+WHAT IS HAPPENING TODAY
+-----------------------
+This morning the product manager moved CUS-101 into the current sprint and
+assigned it to you.
+
+The support team wants the first usable Customer Directory.
+
+They need to:
+
+- browse customers
+- search by customer name
+- search by email address
+- search by company
+- move through large result sets using pagination
+
+The backend must perform search and pagination. The frontend must NOT download
+all customer records and then filter/paginate them in React.
+
+Authentication is deliberately outside the scope of this first ticket.
+The team will add access-control work in a later sprint.
+
+
+WHAT DOES NOT EXIST YET
+-----------------------
+There is currently NO production-ready:
+
+- GET /api/customers endpoint
+- customer search API
+- customer pagination API
+- working customer table/list UI
+- frontend customer data-fetching logic
+- customer loading/error/empty UI
+
+That missing functionality is your task.
+
+Do not assume that a missing file is an accident. Some files are absent because
+YOU are supposed to decide how the feature should be structured.
+
+
+YOUR ASSIGNMENT
+---------------
+Implement ticket CUS-101.
+
+Read TICKET-CUS-101.md for the formal acceptance criteria.
+
+Before coding:
+
+1. Run the existing system.
+2. Seed the database.
+3. Open the existing dashboard.
+4. Test the existing API endpoints.
+5. Explore the frontend and backend folder structure.
+6. Inspect the Customer model.
+7. Understand how the existing stats route reaches MongoDB.
+
+Then design and implement Customer Directory yourself.
+
+
+HOW TO THINK ABOUT THIS LIKE A JOB
+----------------------------------
+Do not ask, "What tutorial should I follow?"
+
+Think instead:
+
+- What exactly is the business asking for?
+- Which layers of the current system need to change?
+- What happens when query parameters are invalid?
+- What happens when there are no results?
+- What happens when MongoDB is unavailable?
+- What should the API return to make pagination usable?
+- How do I keep TypeScript types meaningful?
+- How do I avoid leaking internal server errors?
+- What should happen when a user searches and then changes page?
+- Does the UI still work on a narrow screen?
+
+Those decisions are part of the work.
+
+
+DEFINITION OF A GOOD DAY 1
+--------------------------
+A successful Day 1 does NOT mean using the most libraries or writing the most code.
+
+A successful Day 1 means:
+
+- the existing app still works
+- CUS-101 acceptance criteria are met
+- code is understandable
+- TypeScript is used properly
+- API behavior is predictable
+- basic edge cases are handled
+- you can explain your technical decisions
+
+When finished, do not send any private repository access.
+Simply report what you implemented, how you tested it, problems you encountered,
+and decisions you made. You can share only sanitized snippets/errors if you want
+technical review.
+
+Welcome to QueueFlow.

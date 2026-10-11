@@ -1,0 +1,35 @@
+CUS-101 LOCAL REVIEW
+====================
+
+Time taken:
+
+What I changed:
+-
+
+API response shape:
+
+Search approach:
+
+Pagination approach:
+
+Validation behavior:
+
+Frontend state/data-fetching approach:
+
+How I tested it:
+-
+
+Edge cases tested:
+-
+
+Problems I hit:
+-
+
+Known limitations:
+-
+
+What I would improve with more time:
+-
+
+Questions for senior review:
+-

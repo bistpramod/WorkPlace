@@ -1,0 +1,170 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  background: #f4f6f8;
+  color: #1c2430;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f4f6f8;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+
+.sidebar {
+  background: #17202a;
+  color: #fff;
+  padding: 28px 18px;
+}
+
+.brand {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.sidebar-label {
+  margin-top: 4px;
+  color: #aeb8c4;
+  font-size: 0.84rem;
+}
+
+.nav-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 32px;
+}
+
+.nav-link {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #e7ecf1;
+}
+
+.nav-link:hover {
+  background: #243241;
+}
+
+.main-content {
+  width: min(1100px, 100%);
+  padding: 42px;
+}
+
+.page-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.page-heading h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  letter-spacing: -0.04em;
+}
+
+.page-heading p {
+  max-width: 720px;
+  margin: 0;
+  color: #607080;
+  line-height: 1.6;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #62768a;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.metric-card,
+.panel {
+  background: #fff;
+  border: 1px solid #dfe5eb;
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 2px 8px rgba(18, 31, 44, 0.04);
+}
+
+.metric-card span {
+  display: block;
+  color: #667789;
+  font-size: 0.9rem;
+}
+
+.metric-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 2rem;
+}
+
+.panel {
+  margin-top: 16px;
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.panel p {
+  color: #617181;
+  line-height: 1.6;
+}
+
+.muted {
+  color: #617181;
+}
+
+.error-panel {
+  border-color: #efc6c6;
+}
+
+.feature-pending {
+  border-style: dashed;
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    padding: 18px;
+  }
+
+  .nav-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 18px;
+  }
+
+  .main-content {
+    padding: 24px 18px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
