@@ -22,9 +22,17 @@ const applications = [
   },
 ];
 function searchApplications(applications, searchText) {
- 
+  const cleanSearchText = searchText.toLowerCase();
+
+  return applications.filter((application) => {
+    return (
+      application.company.toLowerCase().includes(cleanSearchText) ||
+      application.role.toLowerCase().includes(cleanSearchText)
+    );
+  });
+}
+
+// These must be outside the function
 console.log(searchApplications(applications, "google"));
 console.log(searchApplications(applications, "developer"));
 console.log(searchApplications(applications, "react"));
-}
-searchApplications();
