@@ -36,3 +36,13 @@ function searchApplications(applications, searchText) {
 console.log(searchApplications(applications, "google"));
 console.log(searchApplications(applications, "developer"));
 console.log(searchApplications(applications, "react"));
+function filterByStatus(applications, selectedStatus) {
+  return applications.filter((application) => {
+    return application.status === selectedStatus;
+  });
+}
+console.log("Applied:");
+console.log(filterByStatus(applications, "applied"));
+
+console.log("Interviewing:");
+console.log(filterByStatus(applications, "interviewing"));
