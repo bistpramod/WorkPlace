@@ -5,6 +5,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { notFound } from "./middleware/notFound.js";
 import { healthRouter } from "./routes/health.routes.js";
 import { statsRouter } from "./routes/stats.routes.js";
+import { customersRouter } from "./routes/customers.routes.js";
 
 export const app = express();
 
@@ -17,8 +18,7 @@ app.use(express.json());
 
 app.use("/api/health", healthRouter);
 app.use("/api/stats", statsRouter);
-
-// CUS-101 will add the customer directory API to this application.
+app.use("/api/customers", customersRouter);
 
 app.use(notFound);
 app.use(errorHandler);

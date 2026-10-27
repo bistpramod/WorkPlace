@@ -146,6 +146,29 @@ a {
   border-style: dashed;
 }
 
+.directory-panel { padding: 0; overflow: hidden; }
+.search-form { display: grid; gap: 8px; padding: 22px; border-bottom: 1px solid #dfe5eb; }
+.search-form label { font-size: 0.86rem; font-weight: 700; }
+.search-controls { display: flex; gap: 10px; }
+.search-controls input { min-width: 0; flex: 1; padding: 11px 12px; border: 1px solid #b8c3ce; border-radius: 8px; font: inherit; }
+button { padding: 10px 16px; border: 0; border-radius: 8px; background: #1e6091; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+.results-summary { padding: 14px 22px; color: #617181; font-size: 0.9rem; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 14px 22px; border-top: 1px solid #e5e9ee; text-align: left; white-space: nowrap; }
+th { background: #f8fafb; color: #5b6b7b; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+td a { color: #1769aa; }
+.status { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #e9edf1; font-size: 0.78rem; font-weight: 700; text-transform: capitalize; }
+.status-active { background: #dff3e5; color: #176b35; }
+.status-inactive { color: #576675; }
+.status-suspended { background: #fde5e5; color: #9b2c2c; }
+.pagination { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 18px 22px; border-top: 1px solid #dfe5eb; }
+.pagination span { color: #526273; font-size: 0.9rem; }
+.state-message { display: grid; justify-items: start; gap: 8px; padding: 36px 22px; color: #617181; }
+.state-message strong { color: #1c2430; }
+.error-state { background: #fff7f7; }
+
 @media (max-width: 720px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -167,4 +190,12 @@ a {
   .summary-grid {
     grid-template-columns: 1fr;
   }
+
+  .search-controls { align-items: stretch; flex-direction: column; }
+  thead { display: none; }
+  tr { display: grid; padding: 12px 18px; border-top: 1px solid #e5e9ee; }
+  td { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px; padding: 6px 0; border: 0; white-space: normal; overflow-wrap: anywhere; }
+  td::before { content: attr(data-label); color: #68798a; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
+  .pagination { justify-content: space-between; gap: 8px; }
+  .pagination button { padding-inline: 12px; }
 }
