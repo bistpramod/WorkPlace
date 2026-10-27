@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { config } from "./config.js";
+import { config } from "./config/config.js";
 import { Appointment, WorkingHours } from "./models.js";
 export function parseDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))

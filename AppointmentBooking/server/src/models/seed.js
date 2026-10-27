@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { config } from "./config.js";
-import { User, Service, WorkingHours } from "./models.js";
+import { config } from "../config/config.js";
+import { User, Service, WorkingHours } from "../models.js";
 await mongoose.connect(config.mongoUri);
 const services = [
   {

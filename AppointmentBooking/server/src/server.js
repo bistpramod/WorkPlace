@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { app } from "./app.js";
-import { config } from "./config.js";
+import { config } from "./config/config.js";
 try {
   await mongoose.connect(config.mongoUri);
   await mongoose.connection.syncIndexes();

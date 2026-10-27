@@ -3,7 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
-import { config } from "./config.js";
+import { config } from "./config/config.js";
 import { setSession, COOKIE, requireAuth, requireAdmin } from "./auth.js";
 import { User, Service, WorkingHours, Appointment } from "./models.js";
 import { availableSlots, isOpenSlot } from "./slots.js";
@@ -25,12 +25,10 @@ app.post("/api/auth/register", async (req, res) => {
     typeof password !== "string" ||
     password.length < 8
   )
-    return res
-      .status(400)
-      .json({
-        message:
-          "Enter a name, valid email, and password of at least 8 characters.",
-      });
+    return res.status(400).json({
+      message:
+        "Enter a name, valid email, and password of at least 8 characters.",
+    });
   try {
     const user = await User.create({
       name: name.trim(),
@@ -39,16 +37,14 @@ app.post("/api/auth/register", async (req, res) => {
       role: "customer",
     });
     setSession(res, user);
-    res
-      .status(201)
-      .json({
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      });
+    res.status(201).json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
   } catch (error) {
     if (error.code === 11000)
       return res
@@ -184,15 +180,13 @@ app.post("/api/admin/services", ...admin, async (req, res) => {
     return res
       .status(400)
       .json({ message: "Name and a non-negative price are required." });
-  res
-    .status(201)
-    .json(
-      await Service.create({
-        name: name.trim(),
-        description: String(description),
-        price: Number(price),
-      }),
-    );
+  res.status(201).json(
+    await Service.create({
+      name: name.trim(),
+      description: String(description),
+      price: Number(price),
+    }),
+  );
 });
 app.patch("/api/admin/services/:id", ...admin, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id))
@@ -238,11 +232,9 @@ app.use((req, res) =>
 );
 app.use((error, _req, res, _next) => {
   console.error(error);
-  res
-    .status(error.status || 500)
-    .json({
-      message: error.status
-        ? error.message
-        : "The server could not complete the request.",
-    });
+  res.status(error.status || 500).json({
+    message: error.status
+      ? error.message
+      : "The server could not complete the request.",
+  });
 });
